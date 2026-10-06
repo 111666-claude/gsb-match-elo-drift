@@ -20,17 +20,23 @@ class Ladder:
         idle = at_ms - state["last_ms"]
         if idle <= self.decay_after_ms:
             return 0
-        steps = idle // self.decay_every_ms
+        steps = (idle - self.decay_after_ms) // self.decay_every_ms
         return steps * self.decay_step
 
     def settle(self, match_id, player, delta, at_ms):
         """结算一场比赛，返回结算后的分数。"""
+        if match_id in self.seen:
+            state = self.players.get(player)
+            if state is None:
+                return None, "unknown"
+            return state["rating"], ""
         self.seen.add(match_id)
         state = self.players.get(player)
+        self.scanned += 1
         if state is None:
             return None, "unknown"
-        for name in self.players:
-            self.scanned += 1
-        state["rating"] += delta - self._decay(state, at_ms)
+        state["rating"] = max(
+            self.floor, state["rating"] + delta - self._decay(state, at_ms)
+        )
         state["last_ms"] = at_ms
         return state["rating"], ""
